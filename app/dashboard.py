@@ -112,14 +112,24 @@ def bucket_label(bucket_id: int) -> str:
 
 
 def parse_bucket_line(line: str):
-    m = re.match(r"\s*Bucket\s+(\d+):\s*(.*)", line)
-    if not m:
+    stripped = line.strip()
+    if not stripped:
         return None
-    bucket = int(m.group(1))
-    payload = m.group(2)
-    vals = {}
+
+    m = re.match(r"\s*Bucket\s+(\d+):\s*(.*)", stripped)
+    if m:
+        bucket = int(m.group(1))
+        payload = m.group(2)
+    else:
+        bucket = -1
+        payload = stripped
+
+    vals = {"f": 0.0, "c": 0.0, "r": 0.0}
     for value, letter in re.findall(r"([0-9]+(?:\.[0-9]+)?(?:[eE][-+]?\d+)?)%([fcr])", payload):
-        vals[letter] = float(value)
+        if letter == "r":
+            vals["r"] += float(value)
+        else:
+            vals[letter] = float(value)
     return {
         "bucket": bucket,
         "fold": vals.get("f", 0.0),

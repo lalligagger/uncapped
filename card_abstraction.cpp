@@ -286,33 +286,26 @@ int Pio25CardAbstraction::preflop_to_bucket( const uint8_t hole_cards
   const int r1 = rankOfCard( hole_cards[ player ][ 1 ] );
   const int lo = std::min( r0, r1 );
   const int hi = std::max( r0, r1 );
+  const bool suited = suitOfCard( hole_cards[ player ][ 0 ] ) ==
+    suitOfCard( hole_cards[ player ][ 1 ] );
 
   /*
-   * Bucket layout:
-   *  - 0..12: pocket pairs (22, 33, ..., AA)
-   *  - 13..168: unique non-pair rank classes, split as offsuit/suited.
+   * Encode the private preflop features as a tuple keyed by rank pair plus
+   * a suited flag, rather than a custom hand-class taxonomy.  This preserves
+   * the intended reduced abstraction without introducing ad hoc labels.
    *
-   * We keep 23 and 32 as the same bucket, but distinguish 23o from 23s.
-   * This matches the ACPC local card model and the random deal combinatorics:
-   * for a given rank pair, there are 12 offsuit combos and 4 suited combos.
+   *  - 0..12: pocket pairs (22, 33, ..., AA)
+   *  - 13..168: normalized rank tuple (lo, hi) with offsuit/suited split.
    */
   if( lo == hi ) {
     return lo;
   }
 
-  int pair_index = 0;
-  for( int high = 0; high < 13; ++high ) {
-    for( int low = 0; low < high; ++low ) {
-      if( low == lo && high == hi ) {
-	const bool suited = suitOfCard( hole_cards[ player ][ 0 ] ) ==
-	  suitOfCard( hole_cards[ player ][ 1 ] );
-	return 13 + 2 * pair_index + ( suited ? 1 : 0 );
-      }
-      ++pair_index;
-    }
-  }
-
-  return 0;
+  /* For a non-pair, the rank tuple is (lo, hi) with lo < hi, and the suited
+   * flag distinguishes (lo, hi, offsuit) from (lo, hi, suited).
+   */
+  const int pair_index = hi * ( hi - 1 ) / 2 + lo;
+  return 13 + 2 * pair_index + ( suited ? 1 : 0 );
 }
 
 bool Pio49CardAbstraction::load_flop_map( const char *filename )
