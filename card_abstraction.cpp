@@ -285,9 +285,14 @@ int Pio25CardAbstraction::preflop_to_bucket( const uint8_t hole_cards
     return lo;
   }
 
+  /*
+   * ACPC ranks are zero-based: 2..A map to 0..12, so the rank-pair loop must
+   * iterate in those same units. Using 2..14 here collapses low-value
+   * non-pair hands into the same bucket and leaves high-card buckets skewed.
+   */
   int pair_index = 0;
-  for( int high = 2; high <= 14; ++high ) {
-    for( int low = 2; low < high; ++low ) {
+  for( int high = 0; high < MAX_RANKS; ++high ) {
+    for( int low = 0; low < high; ++low ) {
       if( low == lo && high == hi ) {
 	const bool suited = suitOfCard( hole_cards[ player ][ 0 ] ) ==
 	  suitOfCard( hole_cards[ player ][ 1 ] );
