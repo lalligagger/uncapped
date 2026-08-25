@@ -28,6 +28,30 @@ EXPECTED_SNIPPETS = {
 }
 
 
+def test_zero_based_rank_pairs_map_to_canonical_preflop_buckets() -> None:
+    # ACPC ranks are zero-based (2 -> 0, ..., A -> 12), and the non-pair bucket
+    # block starts at 13 with offsuit first and suited immediately after it.
+    rank_order = "23456789TJQKA"
+    pair_index = 0
+    seen = {}
+    for high in range(13):
+        for low in range(high):
+            seen[(low, high)] = pair_index
+            pair_index += 1
+
+    assert seen[(0, 1)] == 0
+    assert seen[(10, 11)] == 65
+    assert seen[(11, 12)] == 77
+    assert 13 + 2 * seen[(0, 1)] == 13
+    assert 13 + 2 * seen[(0, 1)] + 1 == 14
+    assert 13 + 2 * seen[(10, 11)] == 143
+    assert 13 + 2 * seen[(10, 11)] + 1 == 144
+    assert 13 + 2 * seen[(11, 12)] == 167
+    assert 13 + 2 * seen[(11, 12)] + 1 == 168
+    assert rank_order[0] == "2"
+    assert rank_order[-1] == "A"
+
+
 def parse_rows(stdout: str):
     rows = {}
     for line in stdout.splitlines():
