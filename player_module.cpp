@@ -79,6 +79,7 @@ PlayerModule::PlayerModule( const char *player_file )
 
   /* Initialize abstract game, rng from parameters */
   ag = new AbstractGame( params );
+  zero_regret_fallback_type = params.zero_regret_fallback_type;
   init_by_array( &rng, params.rng_seeds, NUM_RNG_SEEDS );
 
   /* Time to load the binary file.  First, get the filesize */
@@ -340,13 +341,20 @@ void PlayerModule::get_action_probs( State &state,
 							       pos_entries );
 
   /* Get the abstract game action probabilities */
+  memset( action_probs, 0, MAX_ABSTRACT_ACTIONS * sizeof( action_probs[ 0 ] ) );
   if( sum_pos_entries == 0 ) {
     if( verbose ) {
-      fprintf( stderr, "ALL POSITIVE ENTRIES ARE ZERO\n" );
+      fprintf( stderr, "ALL POSITIVE ENTRIES ARE ZERO; using a uniform policy\n" );
+    }
+    if( num_choices <= 0 ) {
+      return;
+    }
+    const double uniform_prob = 1.0 / num_choices;
+    for( int c = 0; c < num_choices; ++c ) {
+      action_probs[ c ] = uniform_prob;
     }
     return;
   }
-  memset( action_probs, 0, MAX_ABSTRACT_ACTIONS * sizeof( action_probs[ 0 ] ) );
   for( int c = 0; c < num_choices; ++c ) {
     action_probs[ c ] = 1.0 * pos_entries[ c ] / sum_pos_entries;
   }
@@ -405,27 +413,37 @@ void PlayerModule::get_default_action_probs( State &state,
 					     double action_probs
 					     [ MAX_ABSTRACT_ACTIONS ] ) const
 {
-  /* Default will be always call */
-  
+  /* Default to a zero-regret fallback over legal actions.  The historical
+   * behavior was a call-prior; the alternate uniform mode is preserved as a
+   * diagnostics option.
+   */
   memset( action_probs, 0, MAX_ABSTRACT_ACTIONS * sizeof( action_probs[ 0 ] ) );
-  
+
   /* Get the abstract actions */
   Action actions[ MAX_ABSTRACT_ACTIONS ];
   int num_choices = ag->action_abs->get_actions( ag->game, state, actions );
+  if( num_choices <= 0 ) {
+    return;
+  }
 
-  /* Find the call action */
-  for( int a = 0; a < num_choices; ++a ) {
-    if( actions[ a ].type == a_call ) {
-      action_probs[ a ] = 1.0;
+  if( zero_regret_fallback_type == ZERO_REGRET_FALLBACK_CALL ) {
+    int call_index = -1;
+    for( int a = 0; a < num_choices; ++a ) {
+      if( actions[ a ].type == a_call ) {
+        call_index = a;
+        break;
+      }
+    }
+    if( call_index >= 0 ) {
+      action_probs[ call_index ] = 1.0;
       return;
     }
   }
 
-  /* Still haven't returned?  This means we couldn't find a call action,
-   * so we must be dealing with a very weird action abstraction.
-   * Let's just always play the first action then by default.
-   */
-  action_probs[ 0 ] = 1.0;
+  const double uniform_prob = 1.0 / num_choices;
+  for( int a = 0; a < num_choices; ++a ) {
+    action_probs[ a ] = uniform_prob;
+  }
 }
 
 void print_player_file( const Parameters &params,

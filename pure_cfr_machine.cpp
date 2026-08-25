@@ -24,7 +24,8 @@ extern "C" {
 
 PureCfrMachine::PureCfrMachine( const Parameters &params )
   : ag( params ),
-    do_average( params.do_average )
+    do_average( params.do_average ),
+    zero_regret_fallback_type( params.zero_regret_fallback_type )
 {
   /* Check for problems */
   if( do_average && ag.game->numPlayers > 2 ) {
@@ -395,17 +396,37 @@ int PureCfrMachine::walk_pure_cfr( const int position,
   uint64_t pos_regrets[ num_choices ];
   uint64_t sum_pos_regrets
     = regrets[ round ]->get_pos_values( bucket,
-					soln_idx,
-					num_choices,
-					pos_regrets );
+					 soln_idx,
+					 num_choices,
+					 pos_regrets );
   if( sum_pos_regrets == 0 ) {
-    /* No positive regret, so assume a default uniform random current strategy */
-    sum_pos_regrets = num_choices;
-    for( int c = 0; c < num_choices; ++c ) {
-      pos_regrets[ c ] = 1;
+    if( zero_regret_fallback_type == ZERO_REGRET_FALLBACK_CALL ) {
+      int call_choice = -1;
+      if( num_choices > 1 ) {
+        call_choice = 1;
+      } else if( num_choices > 0 ) {
+        call_choice = 0;
+      }
+      if( call_choice >= 0 ) {
+        sum_pos_regrets = 1;
+        for( int c = 0; c < num_choices; ++c ) {
+          pos_regrets[ c ] = 0;
+        }
+        pos_regrets[ call_choice ] = 1;
+      } else {
+        sum_pos_regrets = num_choices;
+        for( int c = 0; c < num_choices; ++c ) {
+          pos_regrets[ c ] = 1;
+        }
+      }
+    } else {
+      /* No positive regret, so assume a default uniform random current strategy */
+      sum_pos_regrets = num_choices;
+      for( int c = 0; c < num_choices; ++c ) {
+        pos_regrets[ c ] = 1;
+      }
     }
   }
-
   /* Purify the current strategy so that we always take choice */
   uint64_t dart = genrand_int32( &rng ) % sum_pos_regrets;
   int choice;

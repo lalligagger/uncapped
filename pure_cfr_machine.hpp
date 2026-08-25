@@ -46,6 +46,7 @@ protected:
 
   AbstractGame ag;
   const bool do_average;
+  const zero_regret_fallback_type_t zero_regret_fallback_type;
   Entries *regrets[ MAX_ROUNDS ];
   Entries *avg_strategy[ MAX_ROUNDS ];
 };

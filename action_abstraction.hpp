@@ -84,4 +84,54 @@ public:
 protected:
 };
 
+/* Minimal no-limp variant: only removes the call action at the very first
+ * preflop decision point; all other rounds keep the standard legal action set.
+ */
+class NoLimpActionAbstraction : public ActionAbstraction {
+public:
+
+  NoLimpActionAbstraction( );
+  virtual ~NoLimpActionAbstraction( );
+
+  virtual int get_actions( const Game *game,
+				 const State &state,
+				 Action actions[ MAX_ABSTRACT_ACTIONS ] ) const;
+
+protected:
+};
+
+/* Same as TRUNC3, but the first preflop action node excludes the call action.
+ * This matches the historical no-limp variant used for preflop opening checks.
+ */
+class Trunc3NoLimpActionAbstraction : public ActionAbstraction {
+public:
+
+  Trunc3NoLimpActionAbstraction( );
+  virtual ~Trunc3NoLimpActionAbstraction( );
+
+  virtual int get_actions( const Game *game,
+				 const State &state,
+				 Action actions[ MAX_ABSTRACT_ACTIONS ] ) const;
+
+protected:
+};
+
+/* A TRUNC3-style abstraction that keeps the 3-raise cap on every street,
+ * instead of forcing checkdown after the flop.  It still uses the compact
+ * three-raise limit, but applies it uniformly across all rounds.
+ */
+class Trunc3x5ActionAbstraction : public ActionAbstraction {
+public:
+
+  Trunc3x5ActionAbstraction( );
+  virtual ~Trunc3x5ActionAbstraction( );
+
+  virtual int get_actions( const Game *game,
+				 const State &state,
+				 Action actions[ MAX_ABSTRACT_ACTIONS ] ) const;
+
+protected:
+};
+
 #endif
+

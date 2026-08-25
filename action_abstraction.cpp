@@ -182,3 +182,127 @@ int Trunc3ActionAbstraction::get_actions( const Game *game,
 
   return num_actions;
 }
+
+NoLimpActionAbstraction::NoLimpActionAbstraction( )
+{
+}
+
+NoLimpActionAbstraction::~NoLimpActionAbstraction( )
+{
+}
+
+int NoLimpActionAbstraction::get_actions( const Game *game,
+					 const State &state,
+					 Action actions[ MAX_ABSTRACT_ACTIONS ] ) const
+{
+  assert( MAX_ABSTRACT_ACTIONS >= 4 );
+
+  int num_actions = 0;
+  const bool is_first_preflop_action = ( state.round == 0 && state.numActions[ 0 ] == 0 );
+
+  for( int a = 0; a < NUM_ACTION_TYPES; ++a ) {
+    Action action;
+    action.type = ( ActionType ) a;
+    action.size = 0;
+
+    if( !isValidAction( game, &state, 0, &action ) ) {
+      continue;
+    }
+
+    if( is_first_preflop_action && action.type == a_call ) {
+      continue;
+    }
+
+    actions[ num_actions ] = action;
+    ++num_actions;
+  }
+
+  return num_actions;
+}
+
+Trunc3NoLimpActionAbstraction::Trunc3NoLimpActionAbstraction( )
+{
+}
+
+Trunc3NoLimpActionAbstraction::~Trunc3NoLimpActionAbstraction( )
+{
+}
+
+int Trunc3NoLimpActionAbstraction::get_actions( const Game *game,
+						 const State &state,
+						 Action actions[ MAX_ABSTRACT_ACTIONS ] ) const
+{
+  assert( MAX_ABSTRACT_ACTIONS >= 4 );
+
+  int num_actions = 0;
+  uint8_t round = state.round;
+  const bool force_checkdown = false;
+  const bool allow_raise = ( numRaises( &state ) < 3 );
+  const bool is_first_preflop_action = ( round == 0 && state.numActions[ 0 ] == 0 );
+
+  for( int a = 0; a < NUM_ACTION_TYPES; ++a ) {
+    Action action;
+    action.type = ( ActionType ) a;
+    action.size = 0;
+
+    if( action.type == a_raise ) {
+      if( force_checkdown || !allow_raise ) {
+	continue;
+      }
+      if( isValidAction( game, &state, 0, &action ) ) {
+	actions[ num_actions ] = action;
+	++num_actions;
+      }
+    } else if( isValidAction( game, &state, 0, &action ) ) {
+      if( is_first_preflop_action && action.type == a_call ) {
+	continue;
+      }
+      if( force_checkdown && action.type == a_raise ) {
+	continue;
+      }
+      actions[ num_actions ] = action;
+      ++num_actions;
+    }
+  }
+
+  return num_actions;
+}
+
+Trunc3x5ActionAbstraction::Trunc3x5ActionAbstraction( )
+{
+}
+
+Trunc3x5ActionAbstraction::~Trunc3x5ActionAbstraction( )
+{
+}
+
+int Trunc3x5ActionAbstraction::get_actions( const Game *game,
+					 const State &state,
+					 Action actions[ MAX_ABSTRACT_ACTIONS ] ) const
+{
+  assert( MAX_ABSTRACT_ACTIONS >= 4 );
+
+  int num_actions = 0;
+  const bool allow_raise = ( numRaises( &state ) < 3 );
+
+  for( int a = 0; a < NUM_ACTION_TYPES; ++a ) {
+    Action action;
+    action.type = ( ActionType ) a;
+    action.size = 0;
+
+    if( action.type == a_raise ) {
+      if( !allow_raise ) {
+	continue;
+      }
+      if( isValidAction( game, &state, 0, &action ) ) {
+	actions[ num_actions ] = action;
+	++num_actions;
+      }
+    } else if( isValidAction( game, &state, 0, &action ) ) {
+      actions[ num_actions ] = action;
+      ++num_actions;
+    }
+  }
+
+  return num_actions;
+}

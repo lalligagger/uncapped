@@ -58,6 +58,7 @@ public:
   int max_walltime_seconds;
   bool do_average;
   bool overwrite_existing;
+  zero_regret_fallback_type_t zero_regret_fallback_type;
 };
 
 #endif

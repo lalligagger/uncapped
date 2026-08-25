@@ -176,7 +176,22 @@ Pio25CardAbstraction::Pio25CardAbstraction( )
   }
 }
 
+Pio49CardAbstraction::Pio49CardAbstraction( )
+{
+  flop_bucket_map.clear( );
+  bool loaded = load_flop_map( "pio49_flop_map.dat" );
+  if( !loaded ) {
+    fprintf( stderr,
+             "Warning: PIO49 flop map not found; using PIO25-style zero bucket mapping.\n" );
+    flop_bucket_map.assign( NUM_CANONICAL_FLOPS, 0 );
+  }
+}
+
 Pio25CardAbstraction::~Pio25CardAbstraction( )
+{
+}
+
+Pio49CardAbstraction::~Pio49CardAbstraction( )
 {
 }
 
@@ -286,8 +301,8 @@ int Pio25CardAbstraction::preflop_to_bucket( const uint8_t hole_cards
   }
 
   int pair_index = 0;
-  for( int high = 2; high <= 14; ++high ) {
-    for( int low = 2; low < high; ++low ) {
+  for( int high = 0; high < 13; ++high ) {
+    for( int low = 0; low < high; ++low ) {
       if( low == lo && high == hi ) {
 	const bool suited = suitOfCard( hole_cards[ player ][ 0 ] ) ==
 	  suitOfCard( hole_cards[ player ][ 1 ] );
@@ -300,6 +315,35 @@ int Pio25CardAbstraction::preflop_to_bucket( const uint8_t hole_cards
   return 0;
 }
 
+bool Pio49CardAbstraction::load_flop_map( const char *filename )
+{
+  FILE *file = fopen( filename, "r" );
+  if( file == NULL ) {
+    return false;
+  }
+
+  std::vector<int> loaded_map;
+  loaded_map.reserve( NUM_CANONICAL_FLOPS );
+
+  int value = 0;
+  while( fscanf( file, "%d", &value ) == 1 ) {
+    loaded_map.push_back( value );
+    if( loaded_map.size() >= NUM_CANONICAL_FLOPS ) {
+      break;
+    }
+  }
+  fclose( file );
+
+  if( loaded_map.size() != NUM_CANONICAL_FLOPS ) {
+    fprintf( stderr, "Warning: [%s] contained %zu entries; expected %d.\n",
+             filename, loaded_map.size(), NUM_CANONICAL_FLOPS );
+    return false;
+  }
+
+  flop_bucket_map = loaded_map;
+  return true;
+}
+
 int Pio25CardAbstraction::num_buckets( const Game *game,
 				       const BettingNode *node ) const
 {
@@ -310,7 +354,13 @@ int Pio25CardAbstraction::num_buckets( const Game *game,
     return NUM_PRE_FLOP_BUCKETS;
   }
   if( node->get_round() == 1 ) {
-    return NUM_PIO25_BUCKETS;
+    return NUM_PRE_FLOP_BUCKETS * NUM_PIO25_BUCKETS;
+  }
+  if( node->get_round() == 2 ) {
+    return NUM_PRE_FLOP_BUCKETS * 47;
+  }
+  if( node->get_round() == 3 ) {
+    return NUM_PRE_FLOP_BUCKETS * 46;
   }
   return 1;
 }
@@ -322,9 +372,103 @@ int Pio25CardAbstraction::num_buckets( const Game *game,
     return NUM_PRE_FLOP_BUCKETS;
   }
   if( state.round == 1 ) {
-    return NUM_PIO25_BUCKETS;
+    return NUM_PRE_FLOP_BUCKETS * NUM_PIO25_BUCKETS;
+  }
+  if( state.round == 2 ) {
+    return NUM_PRE_FLOP_BUCKETS * 47;
+  }
+  if( state.round == 3 ) {
+    return NUM_PRE_FLOP_BUCKETS * 46;
   }
   return 1;
+}
+
+int Pio49CardAbstraction::num_buckets( const Game *game,
+				       const BettingNode *node ) const
+{
+  if( node == NULL ) {
+    return 1;
+  }
+  if( node->get_round() == 0 ) {
+    return NUM_PRE_FLOP_BUCKETS;
+  }
+  if( node->get_round() == 1 ) {
+    return NUM_PRE_FLOP_BUCKETS * NUM_PIO49_BUCKETS;
+  }
+  if( node->get_round() == 2 ) {
+    return NUM_PRE_FLOP_BUCKETS * 47;
+  }
+  if( node->get_round() == 3 ) {
+    return NUM_PRE_FLOP_BUCKETS * 46;
+  }
+  return 1;
+}
+
+int Pio49CardAbstraction::num_buckets( const Game *game,
+				       const State &state ) const
+{
+  if( state.round == 0 ) {
+    return NUM_PRE_FLOP_BUCKETS;
+  }
+  if( state.round == 1 ) {
+    return NUM_PRE_FLOP_BUCKETS * NUM_PIO49_BUCKETS;
+  }
+  if( state.round == 2 ) {
+    return NUM_PRE_FLOP_BUCKETS * 47;
+  }
+  if( state.round == 3 ) {
+    return NUM_PRE_FLOP_BUCKETS * 46;
+  }
+  return 1;
+}
+
+int Pio25CardAbstraction::public_board_bucket_count( const int round ) const
+{
+  if( round == 1 ) {
+    return NUM_PIO25_BUCKETS;
+  }
+  if( round == 2 ) {
+    return 47;
+  }
+  if( round == 3 ) {
+    return 46;
+  }
+  return 1;
+}
+
+int Pio25CardAbstraction::public_board_bucket( const uint8_t board_cards[ MAX_BOARD_CARDS ],
+					 const int round ) const
+{
+  if( round == 0 ) {
+    return 0;
+  }
+  if( round == 1 ) {
+    return flops_to_bucket( board_cards );
+  }
+
+  uint8_t cards[ MAX_BOARD_CARDS ];
+  int num_cards = ( round == 2 ) ? 4 : 5;
+  for( int i = 0; i < num_cards; ++i ) {
+    cards[ i ] = board_cards[ i ];
+  }
+
+  for( int i = 0; i < num_cards; ++i ) {
+    for( int j = i + 1; j < num_cards; ++j ) {
+      if( cards[ i ] > cards[ j ] ) {
+	uint8_t tmp = cards[ i ];
+	cards[ i ] = cards[ j ];
+	cards[ j ] = tmp;
+      }
+    }
+  }
+
+  uint64_t key = 0;
+  for( int i = 0; i < num_cards; ++i ) {
+    key = key * 53 + static_cast<uint64_t>( cards[ i ] );
+  }
+
+  int bucket_count = public_board_bucket_count( round );
+  return static_cast<int>( key % bucket_count );
 }
 
 int Pio25CardAbstraction::get_bucket( const Game *game,
@@ -336,13 +480,56 @@ int Pio25CardAbstraction::get_bucket( const Game *game,
   if( node == NULL ) {
     return 0;
   }
-  if( node->get_round() == 0 ) {
-    return preflop_to_bucket( hole_cards, node->get_player() );
+  const int hole_bucket = preflop_to_bucket( hole_cards, node->get_player() );
+  const int round = node->get_round();
+  if( round == 0 ) {
+    return hole_bucket;
   }
-  if( node->get_round() == 1 ) {
-    return flops_to_bucket( board_cards );
+
+  const int board_bucket = public_board_bucket( board_cards, round );
+  const int board_bucket_count = public_board_bucket_count( round );
+  return hole_bucket * board_bucket_count + board_bucket;
+}
+
+int Pio49CardAbstraction::flops_to_bucket( const uint8_t board_cards[ MAX_BOARD_CARDS ] ) const
+{
+  if( flop_bucket_map.empty() ) {
+    return 0;
   }
-  return 0;
+
+  int flop_idx = Pio25CardAbstraction::canonical_flop_index( board_cards );
+  if( flop_idx < 0 || flop_idx >= ( int ) flop_bucket_map.size() ) {
+    return 0;
+  }
+
+  int bucket = flop_bucket_map[ flop_idx ];
+  if( bucket < 0 ) {
+    bucket = 0;
+  }
+  if( bucket >= NUM_PIO49_BUCKETS ) {
+    bucket = NUM_PIO49_BUCKETS - 1;
+  }
+  return bucket;
+}
+
+int Pio49CardAbstraction::get_bucket( const Game *game,
+				      const BettingNode *node,
+				      const uint8_t board_cards[ MAX_BOARD_CARDS ],
+				      const uint8_t hole_cards[ MAX_PURE_CFR_PLAYERS ]
+				      [ MAX_HOLE_CARDS ] ) const
+{
+  if( node == NULL ) {
+    return 0;
+  }
+  const int hole_bucket = preflop_to_bucket( hole_cards, node->get_player() );
+  const int round = node->get_round();
+  if( round == 0 ) {
+    return hole_bucket;
+  }
+
+  const int board_bucket = Pio25CardAbstraction::public_board_bucket( board_cards, round );
+  const int board_bucket_count = Pio25CardAbstraction::public_board_bucket_count( round );
+  return hole_bucket * board_bucket_count + board_bucket;
 }
 
 void Pio25CardAbstraction::precompute_buckets( const Game *game,
@@ -352,10 +539,26 @@ void Pio25CardAbstraction::precompute_buckets( const Game *game,
     for( int r = 0; r < game->numRounds; ++r ) {
       if( r == 0 ) {
         hand.precomputed_buckets[ p ][ r ] = preflop_to_bucket( hand.hole_cards, p );
-      } else if( r == 1 ) {
-        hand.precomputed_buckets[ p ][ r ] = flops_to_bucket( hand.board_cards );
       } else {
-        hand.precomputed_buckets[ p ][ r ] = 0;
+        const int board_bucket = public_board_bucket( hand.board_cards, r );
+        const int board_bucket_count = public_board_bucket_count( r );
+        hand.precomputed_buckets[ p ][ r ] = preflop_to_bucket( hand.hole_cards, p ) * board_bucket_count + board_bucket;
+      }
+    }
+  }
+}
+
+void Pio49CardAbstraction::precompute_buckets( const Game *game,
+					      hand_t &hand ) const
+{
+  for( int p = 0; p < game->numPlayers; ++p ) {
+    for( int r = 0; r < game->numRounds; ++r ) {
+      if( r == 0 ) {
+        hand.precomputed_buckets[ p ][ r ] = preflop_to_bucket( hand.hole_cards, p );
+      } else {
+        const int board_bucket = Pio25CardAbstraction::public_board_bucket( hand.board_cards, r );
+        const int board_bucket_count = Pio25CardAbstraction::public_board_bucket_count( r );
+        hand.precomputed_buckets[ p ][ r ] = preflop_to_bucket( hand.hole_cards, p ) * board_bucket_count + board_bucket;
       }
     }
   }

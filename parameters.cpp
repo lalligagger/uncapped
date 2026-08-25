@@ -104,7 +104,12 @@ Parameters::Parameters( )
 {
   /* Set optional parameters to defaults */
   load_dump = false;
-  card_abs_type = CARD_ABS_NULL;
+  /* Keep the legacy demo's blind card abstraction out of the default runtime.
+   * The project diagnostic and reporting code assumes a real 13x13 bucket map,
+   * so the default must be PIO25 unless the user explicitly opts into legacy
+   * behavior.
+   */
+  card_abs_type = CARD_ABS_PIO25;
   action_abs_type = ACTION_ABS_NULL;
   rng_seeds[ 0 ] = 6;
   rng_seeds[ 1 ] = 12;
@@ -118,6 +123,7 @@ Parameters::Parameters( )
   max_walltime_seconds = INT_MAX;
   do_average = true;
   overwrite_existing = false;
+  zero_regret_fallback_type = ZERO_REGRET_FALLBACK_CALL;
   game_file[ 0 ] = '\0';
   output_prefix[ 0 ] = '\0';
   input_label[ 0 ] = '\0';
@@ -163,6 +169,8 @@ void Parameters::print_usage( const char *prog_name ) const
 	   status_freq_seconds_str );
   fprintf( stderr, "  --checkpoint=<start_time[,mult_time[,add_time]]>\n" );
   fprintf( stderr, "  --max-walltime=<dd:hh:mm:ss>\n" );
+  fprintf( stderr, "  --zero-regrets-fallback={uniform|call}  (default: %s)\n",
+           zero_regret_fallback_type_to_str[ zero_regret_fallback_type ] );
   fprintf( stderr, "  --no-average\n" );
 }
 
@@ -235,6 +243,10 @@ int Parameters::parse( const int argc, const char *argv[] )
 	card_abs_type = CARD_ABS_BLIND;
       } else if( !strcmp( abs_str, "PIO25" ) ) {
 	card_abs_type = CARD_ABS_PIO25;
+      } else if( !strcmp( abs_str, "PIO49" ) ) {
+	card_abs_type = CARD_ABS_PIO49;
+      } else if( !strcmp( abs_str, "PIO85" ) ) {
+	card_abs_type = CARD_ABS_PIO85;
       } else {
 	fprintf( stderr, "Could not parse card abstraction type [%s]\n",
 		 abs_str );
@@ -250,6 +262,11 @@ int Parameters::parse( const int argc, const char *argv[] )
 	  action_abs_type = ( action_abs_type_t ) i;
 	  break;
 	}
+	if( !strcmp( abs_str, "TRUNC3x5" ) &&
+	    !strcmp( action_abs_type_to_str[ i ], "TRUNC3X5" ) ) {
+	  action_abs_type = ( action_abs_type_t ) i;
+	  break;
+	}
       }
       if( i >= NUM_ACTION_ABS_TYPES ) {
 	fprintf( stderr, "Could not parse action abstraction type [%s]\n",
@@ -258,7 +275,7 @@ int Parameters::parse( const int argc, const char *argv[] )
       }
 
     } else if( !strncmp( argv[ index ], "--load-dump=",
-			 strlen( "--load-dump=" ) ) ) {
+				 strlen( "--load-dump=" ) ) ) {
       strncpy( load_dump_prefix, &argv[ index ][ strlen( "--load-dump=" ) ], PATH_LENGTH );
       load_dump = true;
       if( !rng_set ) {
@@ -272,7 +289,7 @@ int Parameters::parse( const int argc, const char *argv[] )
       
     } else if( !strncmp( argv[ index ], "--threads=", strlen( "--threads=" ) ) ) {
       if( sscanf( &argv[ index ][ strlen( "--threads=" ) ], "%d",
-    		  &num_threads ) < 1 ) {
+		  &num_threads ) < 1 ) {
     	fprintf( stderr, "could not read number of threads from [%s]\n", argv[ index ] );
     	return 1;
       }
@@ -311,6 +328,18 @@ int Parameters::parse( const int argc, const char *argv[] )
     	fprintf( stderr, "could not read max walltime from [%s]\n", argv[ index ] );
     	return 1;
       }
+    } else if( !strncmp( argv[ index ], "--zero-regrets-fallback=",
+                         strlen( "--zero-regrets-fallback=" ) ) ) {
+      const char *fallback = &argv[ index ][ strlen( "--zero-regrets-fallback=" ) ];
+      if( !strcmp( fallback, "uniform" ) ) {
+        zero_regret_fallback_type = ZERO_REGRET_FALLBACK_UNIFORM;
+      } else if( !strcmp( fallback, "call" ) ) {
+        zero_regret_fallback_type = ZERO_REGRET_FALLBACK_CALL;
+      } else {
+        fprintf( stderr, "Could not parse zero-regret fallback [%s]\n", fallback );
+        return 1;
+      }
+
     } else if( !strncmp( argv[ index ], "--no-average", strlen( "--no-average" ) ) ) {
       do_average = false;
 
@@ -360,6 +389,8 @@ void Parameters::print_params( FILE *file ) const
   fprintf( file, "DUMP_TIMER %d %d %d\n", dump_timer.seconds_start,
 	   dump_timer.seconds_mult, dump_timer.seconds_add );
   fprintf( file, "MAX_WALLTIME_SECONDS %d\n", max_walltime_seconds );
+  fprintf( file, "ZERO_REGRET_FALLBACK %s\n",
+           zero_regret_fallback_type_to_str[ zero_regret_fallback_type ] );
   if( do_average ) {
     fprintf( file, "DO_AVERAGE TRUE\n" );
   } else {
@@ -422,6 +453,10 @@ int Parameters::read_params( FILE *file )
 	card_abs_type = CARD_ABS_BLIND;
       } else if( !strcmp( card_abs_str, "PIO25" ) ) {
 	card_abs_type = CARD_ABS_PIO25;
+      } else if( !strcmp( card_abs_str, "PIO49" ) ) {
+	card_abs_type = CARD_ABS_PIO49;
+      } else if( !strcmp( card_abs_str, "PIO85" ) ) {
+	card_abs_type = CARD_ABS_PIO85;
       } else {
 	fprintf( stderr, "Unrecognized card abstraction type from line [%s]\n",
 		 line );
@@ -440,6 +475,10 @@ int Parameters::read_params( FILE *file )
       int i;
       for( i = 0; i < NUM_ACTION_ABS_TYPES; ++i ) {
 	if( !strcmp( action_abs_str, action_abs_type_to_str[ i ] ) ) {
+	  break;
+	}
+	if( !strcmp( action_abs_str, "TRUNC3x5" ) &&
+	    !strcmp( action_abs_type_to_str[ i ], "TRUNC3X5" ) ) {
 	  break;
 	}
       }
@@ -506,6 +545,24 @@ int Parameters::read_params( FILE *file )
       if( sscanf( &line[ i ], "%d", &max_walltime_seconds ) < 1 ) {
 	fprintf( stderr, "Error reading MAX_WALLTIME_SECONDS from line [%s]\n",
 		 line );
+	return 1;
+      }
+
+    } else if( !strncmp( line, "ZERO_REGRET_FALLBACK",
+				 strlen( "ZERO_REGRET_FALLBACK" ) ) ) {
+      char tmp[ PATH_LENGTH ];
+      if( get_next_token( tmp, &line[ strlen( "ZERO_REGRET_FALLBACK" ) ] ) ) {
+	fprintf( stderr, "Error reading ZERO_REGRET_FALLBACK from line [%s]\n",
+			 line );
+	return 1;
+      }
+      if( !strcmp( tmp, "uniform" ) ) {
+	zero_regret_fallback_type = ZERO_REGRET_FALLBACK_UNIFORM;
+      } else if( !strcmp( tmp, "call" ) ) {
+	zero_regret_fallback_type = ZERO_REGRET_FALLBACK_CALL;
+      } else {
+	fprintf( stderr, "Unknown ZERO_REGRET_FALLBACK mode [%s] from line [%s]\n",
+			 tmp, line );
 	return 1;
       }
 

@@ -43,6 +43,15 @@ AbstractGame::AbstractGame( const Parameters &params )
   case ACTION_ABS_TRUNC3:
     action_abs = new Trunc3ActionAbstraction( );
     break;
+  case ACTION_ABS_TRUNC3_NOLIMP:
+    action_abs = new Trunc3NoLimpActionAbstraction( );
+    break;
+  case ACTION_ABS_NO_LIMP:
+    action_abs = new NoLimpActionAbstraction( );
+    break;
+  case ACTION_ABS_TRUNC3X5:
+    action_abs = new Trunc3x5ActionAbstraction( );
+    break;
   default:
     fprintf( stderr, "PureCfrMachine constructor: "
 	     "Unrecognized action abstraction type [%s]\n",
@@ -71,6 +80,12 @@ AbstractGame::AbstractGame( const Parameters &params )
     break;
   case CARD_ABS_PIO25:
     card_abs = new Pio25CardAbstraction( );
+    break;
+  case CARD_ABS_PIO49:
+    card_abs = new Pio49CardAbstraction( );
+    break;
+  case CARD_ABS_PIO85:
+    card_abs = new Pio85CardAbstraction( );
     break;
   default:
     fprintf( stderr, "AbstractGame constructor: "

@@ -36,7 +36,9 @@ typedef enum {
   CARD_ABS_NULL = 0,
   CARD_ABS_BLIND = 1,
   CARD_ABS_PIO25 = 2,
-  NUM_CARD_ABS_TYPES = 3
+  CARD_ABS_PIO49 = 3,
+  CARD_ABS_PIO85 = 4,
+  NUM_CARD_ABS_TYPES = 5
 } card_abs_type_t;
 extern const char card_abs_type_to_str[ NUM_CARD_ABS_TYPES ][ PATH_LENGTH ];
 
@@ -45,7 +47,10 @@ typedef enum {
   ACTION_ABS_NULL = 0,
   ACTION_ABS_FCPA = 1,
   ACTION_ABS_TRUNC3 = 2,
-  NUM_ACTION_ABS_TYPES = 3
+  ACTION_ABS_TRUNC3_NOLIMP = 3,
+  ACTION_ABS_NO_LIMP = 4,
+  ACTION_ABS_TRUNC3X5 = 5,
+  NUM_ACTION_ABS_TYPES = 6
 } action_abs_type_t;
 extern const char action_abs_type_to_str[ NUM_ACTION_ABS_TYPES ][ PATH_LENGTH ];
 
@@ -69,6 +74,13 @@ typedef enum {
   TYPE_UINT64_T = 3,
   TYPE_NUM_TYPES = 4
 } pure_cfr_entry_type_t;
+
+typedef enum {
+  ZERO_REGRET_FALLBACK_UNIFORM = 0,
+  ZERO_REGRET_FALLBACK_CALL = 1,
+  ZERO_REGRET_FALLBACK_NUM_TYPES = 2
+} zero_regret_fallback_type_t;
+extern const char zero_regret_fallback_type_to_str[ ZERO_REGRET_FALLBACK_NUM_TYPES ][ PATH_LENGTH ];
 
 extern const pure_cfr_entry_type_t
 REGRET_TYPES[ MAX_ROUNDS ];

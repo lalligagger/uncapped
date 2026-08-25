@@ -123,12 +123,69 @@ protected:
   bool load_flop_map( const char *filename );
   int canonical_flop_index( const uint8_t board_cards[ MAX_BOARD_CARDS ] ) const;
   int flops_to_bucket( const uint8_t board_cards[ MAX_BOARD_CARDS ] ) const;
+  int public_board_bucket( const uint8_t board_cards[ MAX_BOARD_CARDS ],
+			   const int round ) const;
+  int public_board_bucket_count( const int round ) const;
   int preflop_to_bucket( const uint8_t hole_cards[ MAX_PURE_CFR_PLAYERS ]
 			    [ MAX_HOLE_CARDS ],
 			    const int player ) const;
 
   std::vector<int> flop_bucket_map;
   static const int NUM_PIO25_BUCKETS = 25;
+  static const int NUM_PRE_FLOP_BUCKETS = 169;
+  static const int NUM_CANONICAL_FLOPS = 22100;
+};
+
+class Pio49CardAbstraction : public Pio25CardAbstraction {
+public:
+
+  Pio49CardAbstraction( );
+  virtual ~Pio49CardAbstraction( );
+
+  virtual int num_buckets( const Game *game, const BettingNode *node ) const;
+  virtual int num_buckets( const Game *game, const State &state ) const;
+  virtual int get_bucket( const Game *game,
+			  const BettingNode *node,
+			  const uint8_t board_cards[ MAX_BOARD_CARDS ],
+			  const uint8_t hole_cards[ MAX_PURE_CFR_PLAYERS ]
+			  [ MAX_HOLE_CARDS ] ) const;
+  virtual bool can_precompute_buckets( ) const { return true; }
+  virtual void precompute_buckets( const Game *game,
+				   hand_t &hand ) const;
+
+protected:
+  bool load_flop_map( const char *filename );
+  int flops_to_bucket( const uint8_t board_cards[ MAX_BOARD_CARDS ] ) const;
+
+  std::vector<int> flop_bucket_map;
+  static const int NUM_PIO49_BUCKETS = 49;
+  static const int NUM_PRE_FLOP_BUCKETS = 169;
+  static const int NUM_CANONICAL_FLOPS = 22100;
+};
+
+class Pio85CardAbstraction : public Pio49CardAbstraction {
+public:
+
+  Pio85CardAbstraction( );
+  virtual ~Pio85CardAbstraction( );
+
+  virtual int num_buckets( const Game *game, const BettingNode *node ) const;
+  virtual int num_buckets( const Game *game, const State &state ) const;
+  virtual int get_bucket( const Game *game,
+			  const BettingNode *node,
+			  const uint8_t board_cards[ MAX_BOARD_CARDS ],
+			  const uint8_t hole_cards[ MAX_PURE_CFR_PLAYERS ]
+			  [ MAX_HOLE_CARDS ] ) const;
+  virtual bool can_precompute_buckets( ) const { return true; }
+  virtual void precompute_buckets( const Game *game,
+				   hand_t &hand ) const;
+
+protected:
+  bool load_flop_map( const char *filename );
+  int flops_to_bucket( const uint8_t board_cards[ MAX_BOARD_CARDS ] ) const;
+
+  std::vector<int> flop_bucket_map;
+  static const int NUM_PIO85_BUCKETS = 85;
   static const int NUM_PRE_FLOP_BUCKETS = 169;
   static const int NUM_CANONICAL_FLOPS = 22100;
 };

@@ -48,6 +48,7 @@ protected:
   const AbstractGame *ag;
   rng_state_t rng;
   bool verbose;
+  zero_regret_fallback_type_t zero_regret_fallback_type;
   Entries *entries[ MAX_ROUNDS ];
   struct stat sb;
   void *dump_start;
